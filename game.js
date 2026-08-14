@@ -1,53 +1,42 @@
 const CAPACITY = 4;
 
 const COLORS = {
-  red: '#ef4444',
-  blue: '#3b82f6',
-  green: '#22c55e',
-  yellow: '#facc15',
-  purple: '#a855f7',
-  pink: '#ec4899',
-  cyan: '#06b6d4',
-  orange: '#f97316'
+  red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#facc15',
+  purple: '#a855f7', pink: '#ec4899', cyan: '#06b6d4', orange: '#f97316'
 };
 
 // 配列の先頭が試験管の底、末尾が一番上。
+// 各レベルは「各色4個 + 空き試験管2本」。事前に解ける盤面であることを確認済み。
 const LEVELS = [
   [
-    ['red', 'blue', 'green', 'red'],
-    ['green', 'yellow', 'blue', 'yellow'],
-    ['blue', 'red', 'yellow', 'green'],
-    [],
-    []
+    ['blue', 'blue', 'blue', 'red'],
+    ['green', 'green', 'red', 'green'],
+    ['red', 'blue', 'red', 'green'],
+    [], []
   ],
   [
-    ['purple', 'yellow', 'blue', 'green'],
-    ['green', 'red', 'yellow', 'purple'],
-    ['blue', 'purple', 'red', 'yellow'],
-    ['red', 'blue', 'green', 'purple'],
-    [],
-    []
+    ['red', 'green', 'red', 'blue'],
+    ['yellow', 'blue', 'yellow', 'blue'],
+    ['green', 'blue', 'green', 'green'],
+    ['red', 'yellow', 'red', 'yellow'],
+    [], []
   ],
   [
-    ['pink', 'blue', 'cyan', 'yellow'],
-    ['cyan', 'green', 'pink', 'blue'],
-    ['yellow', 'purple', 'green', 'pink'],
-    ['blue', 'yellow', 'purple', 'cyan'],
-    ['green', 'pink', 'cyan', 'purple'],
-    ['purple', 'green', 'yellow', 'blue'],
-    [],
-    []
+    ['red', 'purple', 'purple', 'yellow'],
+    ['green', 'blue', 'blue', 'green'],
+    ['green', 'red', 'blue', 'yellow'],
+    ['purple', 'purple', 'blue', 'red'],
+    ['yellow', 'red', 'green', 'yellow'],
+    [], []
   ],
   [
-    ['orange', 'red', 'purple', 'green'],
-    ['yellow', 'cyan', 'blue', 'orange'],
+    ['purple', 'yellow', 'blue', 'yellow'],
+    ['green', 'pink', 'purple', 'green'],
+    ['red', 'purple', 'blue', 'purple'],
     ['red', 'blue', 'green', 'yellow'],
-    ['purple', 'orange', 'cyan', 'red'],
-    ['green', 'yellow', 'orange', 'blue'],
-    ['cyan', 'purple', 'red', 'cyan'],
-    ['blue', 'green', 'yellow', 'purple'],
-    [],
-    []
+    ['red', 'yellow', 'pink', 'pink'],
+    ['pink', 'blue', 'green', 'red'],
+    [], []
   ]
 ];
 
@@ -67,9 +56,7 @@ let moves = 0;
 let history = [];
 let solved = false;
 
-function cloneTubes(source) {
-  return source.map(tube => [...tube]);
-}
+function cloneTubes(source) { return source.map(tube => [...tube]); }
 
 function loadLevel(index) {
   currentLevel = index % LEVELS.length;
@@ -154,17 +141,14 @@ function handleTubeClick(index, button) {
     selectedTube = null;
     messageEl.textContent = 'そこには注げないよ';
     render();
-    const targetButton = boardEl.children[index];
-    flashInvalid(targetButton);
+    flashInvalid(boardEl.children[index]);
   }
 }
 
 function canPour(from, to) {
   const source = tubes[from];
   const target = tubes[to];
-
   if (!source.length || target.length >= CAPACITY) return false;
-
   const color = source[source.length - 1];
   const targetTop = target[target.length - 1];
   return target.length === 0 || targetTop === color;
@@ -174,27 +158,20 @@ function pour(from, to) {
   const source = tubes[from];
   const target = tubes[to];
   const color = source[source.length - 1];
-
   let sameColorCount = 0;
   for (let i = source.length - 1; i >= 0; i--) {
     if (source[i] !== color) break;
     sameColorCount += 1;
   }
-
-  const available = CAPACITY - target.length;
-  const amount = Math.min(sameColorCount, available);
-
-  for (let i = 0; i < amount; i++) {
-    target.push(source.pop());
-  }
+  const amount = Math.min(sameColorCount, CAPACITY - target.length);
+  for (let i = 0; i < amount; i++) target.push(source.pop());
 }
 
 function isSolved() {
-  return tubes.every(tube => {
-    if (tube.length === 0) return true;
-    if (tube.length !== CAPACITY) return false;
-    return tube.every(color => color === tube[0]);
-  });
+  return tubes.every(tube =>
+    tube.length === 0 ||
+    (tube.length === CAPACITY && tube.every(color => color === tube[0]))
+  );
 }
 
 function undo() {
@@ -207,13 +184,8 @@ function undo() {
   render();
 }
 
-function restart() {
-  loadLevel(currentLevel);
-}
-
-function nextLevel() {
-  loadLevel((currentLevel + 1) % LEVELS.length);
-}
+function restart() { loadLevel(currentLevel); }
+function nextLevel() { loadLevel((currentLevel + 1) % LEVELS.length); }
 
 function flashInvalid(button, message) {
   if (!button) return;
