@@ -2,8 +2,8 @@ const SIZE=5;
 const REGION_COLORS=['#f9a8d4','#93c5fd','#86efac','#fde68a','#c4b5fd'];
 const LEVELS=[
  {regions:[[0,0,1,1,1],[0,2,2,1,3],[0,2,4,3,3],[4,2,4,4,3],[4,4,4,3,3]]},
- {regions:[[0,0,0,1,1],[2,0,3,3,1],[2,2,3,1,1],[2,4,3,4,4],[2,4,4,4,3]]},
- {regions:[[0,1,1,1,2],[0,0,1,2,2],[3,0,4,4,2],[3,3,0,4,2],[3,3,4,4,4]]}
+ {regions:[[0,0,0,1,1],[2,0,3,3,1],[2,2,3,1,1],[2,4,3,4,4],[2,4,4,4,4]]},
+ {regions:[[0,0,1,2,2],[0,0,1,2,2],[3,0,4,4,2],[3,0,0,4,2],[3,3,4,4,4]]}
 ];
 let level=0,state=[];
 const board=document.getElementById('board'),message=document.getElementById('message'),levelNumber=document.getElementById('levelNumber'),nextButton=document.getElementById('nextButton');
