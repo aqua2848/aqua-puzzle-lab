@@ -2,6 +2,7 @@ const DIRS={right:{dr:0,dc:1,angle:0},down:{dr:1,dc:0,angle:90},left:{dr:0,dc:-1
 const $=id=>document.getElementById(id);
 const board=$('board'),message=$('message'),levelNumber=$('levelNumber'),leftCount=$('leftCount'),restartButton=$('restartButton'),newButton=$('newButton'),nextButton=$('nextButton');
 let level=0,size=9,arrows=[],solved=false,animating=false,boardIndex=0;
+
 const BOARDS=[
 [
  {cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[2,3]],dir:'right'},
@@ -17,9 +18,9 @@ const BOARDS=[
  {cells:[[0,3],[0,4],[1,4],[1,3],[2,3],[2,4]],dir:'right'},
  {cells:[[0,7],[1,7],[1,6],[2,6],[3,6],[3,7]],dir:'right'},
  {cells:[[4,1],[4,2],[5,2],[5,3],[6,3],[6,4]],dir:'right'},
- {cells:[[4,8],[5,8],[5,7],[6,7],[7,7],[7,6]],dir:'left'},
+ {cells:[[4,8],[5,8],[5,7],[6,7],[6,8],[7,8]],dir:'down'},
  {cells:[[8,1],[7,1],[7,2],[8,2],[8,3],[8,4]],dir:'right'},
- {cells:[[8,8],[8,7],[7,7],[7,8],[6,8],[5,8]],dir:'up'}
+ {cells:[[8,8],[8,7],[7,7],[7,6],[8,6],[8,5]],dir:'left'}
 ],
 [
  {cells:[[0,0],[1,0],[1,1],[2,1],[2,2],[3,2]],dir:'down'},
@@ -31,8 +32,34 @@ const BOARDS=[
  {cells:[[8,8],[7,8],[7,7],[6,7],[6,8],[5,8]],dir:'up'}
 ]
 ];
+
 function inside(r,c){return r>=0&&r<size&&c>=0&&c<size}
-function loadBoard(index){boardIndex=((index%BOARDS.length)+BOARDS.length)%BOARDS.length;arrows=BOARDS[boardIndex].map((a,id)=>({id,cells:a.cells.map(p=>({r:p[0],c:p[1]})),dir:a.dir,removed:false}));solved=false;animating=false;nextButton.disabled=true;render()}
+function cellKey(r,c){return r+','+c}
+function validateBoard(def){
+  const seen=new Set();
+  for(const a of def){
+    for(let i=0;i<a.cells.length;i++){
+      const [r,c]=a.cells[i],k=cellKey(r,c);
+      if(seen.has(k))return false;
+      seen.add(k);
+      if(i>0){
+        const [pr,pc]=a.cells[i-1];
+        if(Math.abs(r-pr)+Math.abs(c-pc)!==1)return false;
+      }
+    }
+  }
+  return true;
+}
+function loadBoard(index){
+  boardIndex=((index%BOARDS.length)+BOARDS.length)%BOARDS.length;
+  let def=BOARDS[boardIndex];
+  if(!validateBoard(def)){
+    console.warn('Invalid board definition; falling back to LEVEL 1');
+    boardIndex=0;def=BOARDS[0];
+  }
+  arrows=def.map((a,id)=>({id,cells:a.cells.map(p=>({r:p[0],c:p[1]})),dir:a.dir,removed:false}));
+  solved=false;animating=false;nextButton.disabled=true;render();
+}
 
 function pointSegmentDistance(px,py,a,b){
   const vx=b.c-a.c,vy=b.r-a.r,wx=px-a.c,wy=py-a.r,den=vx*vx+vy*vy;
@@ -40,27 +67,46 @@ function pointSegmentDistance(px,py,a,b){
   const x=a.c+vx*t,y=a.r+vy*t;
   return Math.hypot(px-x,py-y);
 }
-function pointHitsArrow(px,py,other){
-  const bodyRadius=.30;
-  const headRadius=.52;
+function rotateLocal(x,y,dir){
+  if(dir==='right')return{x,y};
+  if(dir==='left')return{x:-x,y:-y};
+  if(dir==='down')return{x:-y,y:x};
+  return{x:y,y:-x};
+}
+function movingHeadSamples(head,dir,dist){
+  const d=DIRS[dir],cx=head.c+d.dc*dist,cy=head.r+d.dr*dist;
+  // SVG上の三角形サイズを9x9盤面のセル比に合わせた近似。
+  // 先端、左右の前角、中心を取ることで「三角形 vs 線」の当たり判定にする。
+  const local=[
+    {x:.43,y:0},
+    {x:-.15,y:-.29},
+    {x:-.15,y:.29},
+    {x:.08,y:-.20},
+    {x:.08,y:.20},
+    {x:0,y:0}
+  ];
+  return local.map(p=>{const q=rotateLocal(p.x,p.y,dir);return{x:cx+q.x,y:cy+q.y}});
+}
+function sampleHitsOther(sample,other){
+  const bodyRadius=.15;
   for(let i=0;i<other.cells.length-1;i++){
-    if(pointSegmentDistance(px,py,other.cells[i],other.cells[i+1])<=bodyRadius)return true;
+    if(pointSegmentDistance(sample.x,sample.y,other.cells[i],other.cells[i+1])<=bodyRadius)return true;
   }
-  const head=other.cells[other.cells.length-1];
-  if(Math.hypot(px-head.c,py-head.r)<=headRadius)return true;
-  const tail=other.cells[0];
-  if(Math.hypot(px-tail.c,py-tail.r)<=bodyRadius)return true;
+  // 他矢印の三角ヘッドも障害物として扱う。
+  const h=other.cells[other.cells.length-1];
+  if(Math.hypot(sample.x-h.c,sample.y-h.r)<=.46)return true;
   return false;
 }
 function collisionInfo(a){
   const d=DIRS[a.dir],head=a.cells[a.cells.length-1];
   const active=arrows.filter(x=>!x.removed&&x.id!==a.id);
   const maxDist=d.dc>0?(size-.5)-(head.c+.5):d.dc<0?(head.c+.5):d.dr>0?(size-.5)-(head.r+.5):(head.r+.5);
-  const movingHeadReach=.46;
-  for(let dist=.03;dist<=maxDist+movingHeadReach;dist+=.025){
-    const px=head.c+d.dc*dist,py=head.r+d.dr*dist;
+  for(let dist=.02;dist<=maxDist+.55;dist+=.018){
+    const samples=movingHeadSamples(head,a.dir,dist);
     for(const other of active){
-      if(pointHitsArrow(px,py,other))return{blocked:true,distance:Math.max(.05,dist-movingHeadReach)};
+      for(const sample of samples){
+        if(sampleHitsOther(sample,other))return{blocked:true,distance:Math.max(.02,dist-.05)};
+      }
     }
   }
   return{blocked:false,distance:maxDist+1.6};
