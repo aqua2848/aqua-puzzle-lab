@@ -7,7 +7,7 @@ const BOARDS=[
 [
  {cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[2,3]],dir:'right'},
  {cells:[[0,4],[1,4],[1,5],[2,5],[3,5],[3,6]],dir:'right'},
- {cells:[[0,8],[1,8],[2,8],[2,7],[3,7],[4,7]],dir:'down'},
+ {cells:[[4,7],[3,7],[2,7],[2,8],[1,8],[0,8]],dir:'up'},
  {cells:[[4,0],[4,1],[5,1],[5,2],[6,2],[6,3]],dir:'right'},
  {cells:[[4,4],[5,4],[5,5],[6,5],[6,6],[7,6]],dir:'down'},
  {cells:[[8,0],[8,1],[7,1],[7,2],[8,2],[8,3]],dir:'right'},
@@ -58,6 +58,12 @@ function loadBoard(index){
     boardIndex=0;def=BOARDS[0];
   }
   arrows=def.map((a,id)=>({id,cells:a.cells.map(p=>({r:p[0],c:p[1]})),dir:a.dir,removed:false}));
+  if(!isCurrentBoardSolvable()){
+    console.warn('Unsolvable board definition; falling back to LEVEL 1');
+    boardIndex=0;
+    def=BOARDS[0];
+    arrows=def.map((a,id)=>({id,cells:a.cells.map(p=>({r:p[0],c:p[1]})),dir:a.dir,removed:false}));
+  }
   solved=false;animating=false;nextButton.disabled=true;render();
 }
 
@@ -75,8 +81,6 @@ function rotateLocal(x,y,dir){
 }
 function movingHeadSamples(head,dir,dist){
   const d=DIRS[dir],cx=head.c+d.dc*dist,cy=head.r+d.dr*dist;
-  // SVG上の三角形サイズを9x9盤面のセル比に合わせた近似。
-  // 先端、左右の前角、中心を取ることで「三角形 vs 線」の当たり判定にする。
   const local=[
     {x:.43,y:0},
     {x:-.15,y:-.29},
@@ -92,7 +96,6 @@ function sampleHitsOther(sample,other){
   for(let i=0;i<other.cells.length-1;i++){
     if(pointSegmentDistance(sample.x,sample.y,other.cells[i],other.cells[i+1])<=bodyRadius)return true;
   }
-  // 他矢印の三角ヘッドも障害物として扱う。
   const h=other.cells[other.cells.length-1];
   if(Math.hypot(sample.x-h.c,sample.y-h.r)<=.46)return true;
   return false;
@@ -110,6 +113,25 @@ function collisionInfo(a){
     }
   }
   return{blocked:false,distance:maxDist+1.6};
+}
+function isCurrentBoardSolvable(){
+  const saved=arrows.map(a=>a.removed);
+  for(const a of arrows)a.removed=false;
+  let remaining=arrows.length;
+  while(remaining>0){
+    let progress=false;
+    for(const a of arrows){
+      if(a.removed)continue;
+      if(!collisionInfo(a).blocked){
+        a.removed=true;
+        remaining--;
+        progress=true;
+      }
+    }
+    if(!progress)break;
+  }
+  arrows.forEach((a,i)=>a.removed=saved[i]);
+  return remaining===0;
 }
 
 function center(c){const s=1000/size;return{x:(c.c+.5)*s,y:(c.r+.5)*s}}
