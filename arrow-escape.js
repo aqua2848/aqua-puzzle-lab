@@ -20,7 +20,7 @@ function difficultyForLevel(index){const n=Math.min(12,9+Math.floor(index/2));re
 
 function rayClearFrom(head,d,occupied,n){let r=head.r+d.dr,c=head.c+d.dc;while(inside(r,c,n)){if(occupied.has(key(r,c)))return false;r+=d.dr;c+=d.dc}return true}
 function growRandomArrow(available,occupied,n,random,minLen,maxLen){
-  const starts=shuffle(available,random);
+  const starts=shuffle([...available.values()],random);
   for(const start of starts.slice(0,Math.min(90,starts.length))){
     const path=[start],used=new Set([key(start.r,start.c)]),target=minLen+Math.floor(random()*(maxLen-minLen+1));
     let lastDir=null;
@@ -56,7 +56,7 @@ function buildCandidate(seed,diff){
   const targetCells=Math.floor(diff.n*diff.n*diff.target);let misses=0;
   while(occupied.size<targetCells&&available.size>=3&&misses<150){
     const minLen=misses>30?3:diff.minLen,maxLen=misses>30?Math.max(6,diff.maxLen-4):diff.maxLen;
-    const arrow=growRandomArrow([...available.values()],occupied,diff.n,random,minLen,maxLen);
+    const arrow=growRandomArrow(available,occupied,diff.n,random,minLen,maxLen);
     if(!arrow){misses++;continue}
     arrow.id=placed.length;arrow.removed=false;placed.push(arrow);
     arrow.cells.forEach(c=>{const k=key(c.r,c);available.delete(k);occupied.add(k)});misses=0;
@@ -69,6 +69,7 @@ function generatePuzzle(seed){
   let candidate=null;
   for(let attempt=0;attempt<18&&!candidate;attempt++)candidate=buildCandidate((seed+attempt*104729)>>>0,diff);
   arrows=candidate||buildFallback(diff);
+  if(!arrows.length)arrows=buildFallback(diff);
   solved=false;animating=false;nextButton.disabled=true;render();
 }
 function buildFallback(diff){
