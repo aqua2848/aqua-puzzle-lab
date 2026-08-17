@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#16213e" />
+  <title>Water Sort Puzzle</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <a href="index.html" style="color:#a5f3fc;text-decoration:none;font-weight:800">← Games</a>
+    <header class="topbar">
+      <div><p class="eyebrow">AQUA LAB</p><h1>Water Sort Puzzle</h1></div>
+      <div class="stats" aria-label="ゲーム情報"><div class="stat"><span>LEVEL</span><strong id="levelNumber">1</strong></div><div class="stat"><span>MOVES</span><strong id="moveCount">0</strong></div></div>
+    </header>
+    <section class="game-card">
+      <div class="message" id="message" role="status" aria-live="polite">同じ色をそろえよう！</div>
+      <div class="board" id="board" aria-label="ウォーターソートパズル"></div>
+      <div class="controls"><button id="undoButton" class="secondary" type="button">↶ Undo</button><button id="restartButton" class="secondary" type="button">↻ Restart</button><button id="nextButton" class="primary" type="button" disabled>Next Level →</button></div>
+    </section>
+    <section class="help"><h2>How to play</h2><p>試験管を選び、次に注ぎ先を選択。同じ色の上、または空の試験管にだけ注げます。すべての色を1本ずつにまとめたらクリア！</p></section>
+  </main>
+  <div class="celebration" id="celebration" aria-hidden="true"></div><script src="game.js"></script>
+</body>
+</html>
