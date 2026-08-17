@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <meta name="theme-color" content="#172033" /><title>Cat Doku</title><link rel="stylesheet" href="cat-doku.css" />
+</head>
+<body>
+  <main class="app">
+    <a class="back" href="index.html">← Games</a>
+    <header><div><p class="eyebrow">AQUA LAB</p><h1>🐱 Cat Doku</h1><p class="sub">猫を正しいマスに配置しよう。</p></div><div class="level">LEVEL <strong id="levelNumber">1</strong></div></header>
+    <section class="panel">
+      <div id="message" class="message" aria-live="polite">マスをクリック：空白 → 🐱 → ×</div>
+      <div id="board" class="board" aria-label="Cat Doku盤面"></div>
+      <div class="controls"><button id="resetButton">↻ Reset</button><button id="checkButton">✓ Check</button><button id="nextButton" disabled>Next →</button></div>
+    </section>
+    <section class="rules"><h2>Rules</h2><div class="rule-grid"><div><b>1</b> 各行に猫1匹</div><div><b>2</b> 各列に猫1匹</div><div><b>3</b> 各色エリアに猫1匹</div><div><b>4</b> 猫同士は隣接禁止</div></div><p>※ 隣接は上下左右＋斜めを含みます。</p></section>
+  </main>
+  <div id="celebration" class="celebration"></div><script src="cat-doku.js"></script>
+</body>
+</html>
