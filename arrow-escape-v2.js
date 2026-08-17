@@ -31,11 +31,41 @@ const BOARDS=[
  {cells:[[8,8],[7,8],[7,7],[6,7],[6,8],[5,8]],dir:'up'}
 ]
 ];
-function key(r,c){return r+','+c}
 function inside(r,c){return r>=0&&r<size&&c>=0&&c<size}
-function loadBoard(index){boardIndex=((index%BOARDS.length)+BOARDS.length)%BOARDS.length;arrows=BOARDS[boardIndex].map((a,id)=>({id:id,cells:a.cells.map(p=>({r:p[0],c:p[1]})),dir:a.dir,removed:false}));solved=false;animating=false;nextButton.disabled=true;render()}
-function occupancyExcept(id){const s=new Set();for(const a of arrows){if(a.removed||a.id===id)continue;for(const c of a.cells)s.add(key(c.r,c))}return s}
-function collisionInfo(a){const d=DIRS[a.dir],head=a.cells[a.cells.length-1],occ=occupancyExcept(a.id);let r=head.r+d.dr,c=head.c+d.dc,steps=1;while(inside(r,c)){if(occ.has(key(r,c)))return{blocked:true,steps:steps};r+=d.dr;c+=d.dc;steps++}return{blocked:false,steps:steps}}
+function loadBoard(index){boardIndex=((index%BOARDS.length)+BOARDS.length)%BOARDS.length;arrows=BOARDS[boardIndex].map((a,id)=>({id,cells:a.cells.map(p=>({r:p[0],c:p[1]})),dir:a.dir,removed:false}));solved=false;animating=false;nextButton.disabled=true;render()}
+
+function pointSegmentDistance(px,py,a,b){
+  const vx=b.c-a.c,vy=b.r-a.r,wx=px-a.c,wy=py-a.r,den=vx*vx+vy*vy;
+  const t=den?Math.max(0,Math.min(1,(wx*vx+wy*vy)/den)):0;
+  const x=a.c+vx*t,y=a.r+vy*t;
+  return Math.hypot(px-x,py-y);
+}
+function pointHitsArrow(px,py,other){
+  const bodyRadius=.30;
+  const headRadius=.52;
+  for(let i=0;i<other.cells.length-1;i++){
+    if(pointSegmentDistance(px,py,other.cells[i],other.cells[i+1])<=bodyRadius)return true;
+  }
+  const head=other.cells[other.cells.length-1];
+  if(Math.hypot(px-head.c,py-head.r)<=headRadius)return true;
+  const tail=other.cells[0];
+  if(Math.hypot(px-tail.c,py-tail.r)<=bodyRadius)return true;
+  return false;
+}
+function collisionInfo(a){
+  const d=DIRS[a.dir],head=a.cells[a.cells.length-1];
+  const active=arrows.filter(x=>!x.removed&&x.id!==a.id);
+  const maxDist=d.dc>0?(size-.5)-(head.c+.5):d.dc<0?(head.c+.5):d.dr>0?(size-.5)-(head.r+.5):(head.r+.5);
+  const movingHeadReach=.46;
+  for(let dist=.03;dist<=maxDist+movingHeadReach;dist+=.025){
+    const px=head.c+d.dc*dist,py=head.r+d.dr*dist;
+    for(const other of active){
+      if(pointHitsArrow(px,py,other))return{blocked:true,distance:Math.max(.05,dist-movingHeadReach)};
+    }
+  }
+  return{blocked:false,distance:maxDist+1.6};
+}
+
 function center(c){const s=1000/size;return{x:(c.c+.5)*s,y:(c.r+.5)*s}}
 function pathData(cells,extend,dir){const pts=cells.map(center);if(extend&&dir){const d=DIRS[dir],h=pts[pts.length-1];pts.push({x:h.x+d.dc*extend,y:h.y+d.dr*extend})}return pts.map((p,i)=>(i?'L':'M')+' '+p.x+' '+p.y).join(' ')}
 function groupFor(a){const ns='http://www.w3.org/2000/svg',g=document.createElementNS(ns,'g');g.classList.add('snake-arrow');const d=pathData(a.cells,0,null);for(const cls of ['snake-halo','snake-line','snake-hit']){const p=document.createElementNS(ns,'path');p.classList.add(cls);p.setAttribute('d',d);g.appendChild(p)}const hh=document.createElementNS(ns,'polygon');hh.classList.add('snake-head-halo');hh.setAttribute('points','-50,-43 50,0 -50,43');const h=document.createElementNS(ns,'polygon');h.classList.add('snake-head');h.setAttribute('points','-39,-32 46,0 -39,32');const e=center(a.cells[a.cells.length-1]),tr='translate('+e.x+' '+e.y+') rotate('+DIRS[a.dir].angle+')';hh.setAttribute('transform',tr);h.setAttribute('transform',tr);const tap=()=>tapArrow(a,g);g.querySelector('.snake-hit').addEventListener('click',tap);hh.addEventListener('click',tap);h.addEventListener('click',tap);g.appendChild(hh);g.appendChild(h);return g}
@@ -44,7 +74,7 @@ function prepare(g,a,extend){const ns='http://www.w3.org/2000/svg',line=g.queryS
 function setPos(p,m){for(const el of [p.line,p.halo])el.style.strokeDashoffset=String(-m);const front=Math.min(p.total,p.body+m),q=p.rail.getPointAtLength(front),q2=p.rail.getPointAtLength(Math.max(0,front-5)),ang=Math.atan2(q.y-q2.y,q.x-q2.x)*180/Math.PI,tr='translate('+q.x+' '+q.y+') rotate('+ang+')';p.head.setAttribute('transform',tr);p.headHalo.setAttribute('transform',tr)}
 function tapArrow(a,g){if(solved||animating||a.removed)return;const info=collisionInfo(a);animating=true;g.classList.add('escaping');if(info.blocked){bump(g,a,info);return}a.removed=true;leftCount.textContent=arrows.filter(x=>!x.removed).length;message.textContent='スルルルッ… ➜';escape(g,a)}
 function escape(g,a){const p=prepare(g,a,1650),travel=p.total-p.body,dur=1100+a.cells.length*55,st=performance.now();function f(now){const t=Math.min(1,(now-st)/dur),e=1-Math.pow(1-t,3);setPos(p,travel*e);if(t<1){requestAnimationFrame(f);return}g.remove();animating=false;if(arrows.every(x=>x.removed)){solved=true;message.textContent='🎉 CLEAR! 全部脱出！';nextButton.disabled=false}else message.textContent='次はどれ？'}requestAnimationFrame(f)}
-function bump(g,a,info){message.textContent='スルスル…';const step=1000/size,extend=Math.max(8,(info.steps-.55)*step),p=prepare(g,a,extend),travel=p.total-p.body,fd=420+info.steps*90,bd=360+info.steps*65,st=performance.now();function fw(now){const t=Math.min(1,(now-st)/fd),e=1-Math.pow(1-t,2.2);setPos(p,travel*e);if(t<1){requestAnimationFrame(fw);return}message.textContent='ゴツン！ 💥';g.classList.add('impact');setTimeout(()=>{g.classList.remove('impact');const bs=performance.now();function bk(now2){const t2=Math.min(1,(now2-bs)/bd),e2=1-Math.pow(1-t2,2.1);setPos(p,travel*(1-e2));if(t2<1){requestAnimationFrame(bk);return}for(const el of [p.line,p.halo]){el.setAttribute('d',p.originalD);el.style.strokeDasharray='';el.style.strokeDashoffset=''}p.rail.remove();const e=center(a.cells[a.cells.length-1]),tr='translate('+e.x+' '+e.y+') rotate('+DIRS[a.dir].angle+')';p.head.setAttribute('transform',tr);p.headHalo.setAttribute('transform',tr);g.classList.remove('escaping');animating=false;message.textContent='戻った！ 別の矢印からほどこう'}requestAnimationFrame(bk)},160)}requestAnimationFrame(fw)}
+function bump(g,a,info){message.textContent='スルスル…';const step=1000/size,extend=Math.max(8,info.distance*step),p=prepare(g,a,extend),travel=p.total-p.body,fd=420+info.distance*95,bd=360+info.distance*70,st=performance.now();function fw(now){const t=Math.min(1,(now-st)/fd),e=1-Math.pow(1-t,2.2);setPos(p,travel*e);if(t<1){requestAnimationFrame(fw);return}message.textContent='ゴツン！ 💥';g.classList.add('impact');if(navigator.vibrate)navigator.vibrate(35);setTimeout(()=>{g.classList.remove('impact');const bs=performance.now();function bk(now2){const t2=Math.min(1,(now2-bs)/bd),e2=1-Math.pow(1-t2,2.1);setPos(p,travel*(1-e2));if(t2<1){requestAnimationFrame(bk);return}for(const el of [p.line,p.halo]){el.setAttribute('d',p.originalD);el.style.strokeDasharray='';el.style.strokeDashoffset=''}p.rail.remove();const e=center(a.cells[a.cells.length-1]),tr='translate('+e.x+' '+e.y+') rotate('+DIRS[a.dir].angle+')';p.head.setAttribute('transform',tr);p.headHalo.setAttribute('transform',tr);g.classList.remove('escaping');animating=false;message.textContent='戻った！ 別の矢印からほどこう'}requestAnimationFrame(bk)},160)}requestAnimationFrame(fw)}
 restartButton.onclick=()=>{if(!animating)loadBoard(boardIndex)};
 newButton.onclick=()=>{if(!animating)loadBoard(boardIndex+1)};
 nextButton.onclick=()=>{if(!animating){level++;loadBoard(boardIndex+1)}};
